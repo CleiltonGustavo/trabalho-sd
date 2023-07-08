@@ -34,7 +34,7 @@ while True:
     message = data.decode('utf-8')
 
     # Processa a mensagem recebida do cliente
-    # O objeto JSON é passado com dois campos int, linha e coluna, descontruindo abaixo é possível
+    # O objeto JSON é passado com dois campos int, linha e coluna, descontruindo abaixo é possível aplicar cada um dos campos às variáveis linha e coluna
     try:
         move = json.loads(message)
         linha = move['linha']
