@@ -13,7 +13,7 @@ client_socket.connect((HOST, PORT))
 
 flag = client_socket.recv(1024)
 flag = flag.decode('utf-8')
-#print(flag)
+print(flag)
 if flag == '1'or 1:
     sua_vez = True
 else:
@@ -50,6 +50,7 @@ while True:
         sua_vez = True
 
     data = client_socket.recv(1024)
+    
     #Decodifica mensagem recebida matriz
     matrix = data.decode('utf-8')
     print(matrix)
