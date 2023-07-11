@@ -93,7 +93,7 @@ def XO(aux):
 
 def printm(i):
 
-    string = "JOGADA" + str(i) + '\n'
+    string = "JOGADA" + str(i + 1) + '\n'
     string = string + XO(matriz[0][0]) + " " + XO(matriz[0][1]) + " " + XO(matriz[0][2]) + '\n'
     string = string + XO(matriz[1][0]) + " " + XO(matriz[1][1]) + " " + XO(matriz[1][2]) + '\n'
     string = string + XO(matriz[2][0]) + " " + XO(matriz[2][1]) + " " + XO(matriz[2][2]) + '\n'
@@ -110,6 +110,12 @@ while True:
     try:
         while not fim:
             client_socket = clients[turn % 2]
+            jogadorDaRodada = ''
+            if turn % 2 == 0:
+                jogadorDaRodada = '1'
+            else:
+                jogadorDaRodada = '2'
+            
             solicitar_jogada(client_socket)
             
             # Recebe os dados do cliente
@@ -153,7 +159,8 @@ while True:
                     turn += 1
                 else:
                     print("Localização já preenchida")
-                    clients[turn%2].sendall(('\n',"Localizacao ja preenchida",'\n').encode('utf-8'))
+                    clients[0].sendall(('O jogador ' + jogadorDaRodada + ' tentou uma posição ocupada').encode('utf-8'))
+                    clients[1].sendall(('O jogador ' + jogadorDaRodada + ' tentou uma posição ocupada').encode('utf-8'))
                 
                     
 
