@@ -1,27 +1,33 @@
-# Caio Jordan
-# Cleilton Alves
-# victor veras
-
-
 import socket
 import json
+from cryptography.fernet import Fernet
 
-# Configurações do servidor
-HOST = 'localhost'  # Pode ser o IP do seu servidor
-PORT = 12345  # Porta do servidor
+#Gerar um chave de criptografia que será utilizada para criptografar as mensagens enviadas pelo servidor
+chaveCripto = Fernet.generate_key()
 
-# Cria um socket TCP/IP
+#Guardar a chave de criptografia num txt
+with open('chave.txt', 'wb') as file:
+    file.write(chaveCripto)
+
+#Objeto criado em cima da chaveCripto
+fernet = Fernet(chaveCripto)
+
+#Host (que pode ser o ip do server) e Porta a ser utilizada pelo socket
+HOST = 'localhost'
+PORT = 12345  
+
+#Cria um socket TCP/IP
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Liga o socket ao endereço e porta definidos
+#Liga o socket ao endereço e porta especificados
 server_socket.bind((HOST, PORT))
 
-# Coloca o socket em modo de escuta
-server_socket.listen(2)  # Permite duas conexões simultâneas
+#Permite o socket escutar até dois clientes
+server_socket.listen(2) 
 
 print('Aguardando conexões...')
 
-# Aceita as conexões dos dois clientes
+#Aceita as conexões dos dois clientes
 clients = []
 for _ in range(2):
     client_socket, client_address = server_socket.accept()
@@ -104,7 +110,10 @@ fim = False
 
 def solicitar_jogada(client_socket):
     mensagem = 'FAÇA A JOGADA ' + str(turn + 1) + ': '
-    client_socket.sendall(mensagem.encode('utf-8'))
+    #Criptografa a mensagem
+    mensagemCripto = fernet.encrypt(mensagem.encode('utf-8'))
+    #Envia a mensagem criptografada
+    client_socket.sendall(mensagemCripto)
 
 while True:
     try:
@@ -118,16 +127,17 @@ while True:
             
             solicitar_jogada(client_socket)
             
-            # Recebe os dados do cliente
+            #Recebe os dados do cliente
             data = client_socket.recv(1024)
 
             if not data:
-                # O cliente desconectou
+                #O cliente desconectou
                 print('Cliente desconectado:', client_socket.getpeername())
                 break
 
-            # Decodifica a mensagem recebida
-            message = data.decode('utf-8')
+            jogadaDecriptada = fernet.decrypt(data)
+
+            message = jogadaDecriptada.decode('utf-8')
 
             jogada = json.loads(message)
             l = jogada['linha']
@@ -135,8 +145,9 @@ while True:
 
             if turn == 9:
                 print("Velha")
-                clients[0].sendall(('\0'+"Deu Velha!").encode('utf-8'))
-                clients[1].sendall(('\0'+"Deu Velha!").encode('utf-8'))
+                msgVelha = fernet.encrypt(('\0'+"Deu Velha!").encode('utf-8'))
+                clients[0].sendall(msgVelha)
+                clients[1].sendall(msgVelha)
 
             else:
 
@@ -146,21 +157,24 @@ while True:
                 coluna = c
                 if matriz[l][c] == 0:
                     matriz[l][c] = pow(-1, turn + 1)
-                    matrix = printm(turn) 
-                    print(matrix)                   
-                    clients[0].sendall(('\0'+matrix +'\0').encode('utf-8'))
-                    clients[1].sendall(('\0'+matrix +'\0').encode('utf-8'))
+                    matrix = printm(turn)
+                    print(matrix)
+                    matrixCripto = fernet.encrypt(('\0'+matrix +'\0').encode('utf-8'))                   
+                    clients[0].sendall(matrixCripto)
+                    clients[1].sendall(matrixCripto)
                     if Teste():
-                        print("O ganhador é o jogador:", turn + 1)
-                        clients[0].sendall(('\n',"O ganhador é o jogador:", jogadorDaRodada).encode('utf-8'))
-                        clients[1].sendall(('\n',"O ganhador é o jogador:", jogadorDaRodada).encode('utf-8'))
+                        print("O ganhador é o jogador:", jogadorDaRodada)
+                        ganhadorCripto = fernet.encrypt(('\n' + "O ganhador é o jogador:" + jogadorDaRodada).encode('utf-8'))
+                        clients[0].sendall(ganhadorCripto)
+                        clients[1].sendall(ganhadorCripto)
 
                         fim = True
                     turn += 1
                 else:
                     print("Localização já preenchida")
-                    clients[0].sendall(('O jogador ' + jogadorDaRodada + ' tentou uma posição ocupada').encode('utf-8'))
-                    clients[1].sendall(('O jogador ' + jogadorDaRodada + ' tentou uma posição ocupada').encode('utf-8'))
+                    avisoCripto = fernet.encrypt(('O jogador ' + jogadorDaRodada + ' tentou uma posição ocupada').encode('utf-8'))
+                    clients[0].sendall(avisoCripto)
+                    clients[1].sendall(avisoCripto)
                 
                     
 
@@ -169,7 +183,7 @@ while True:
     except KeyError:
         print('Chaves "linha" e "coluna" não encontradas na mensagem.')
 
-    # Fecha a conexão com os clientes e o socket do servidor
+    #Fecha a conexão com os clientes e o socket do servidor
     for client_socket in clients:
         client_socket.close()
     server_socket.close()
