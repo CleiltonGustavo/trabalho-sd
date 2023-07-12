@@ -1,189 +1,255 @@
 import socket
 import json
-from cryptography.fernet import Fernet
+import threading
+import copy
 
-#Gerar um chave de criptografia que será utilizada para criptografar e decriptografar as mensagens enviadas pelo servidor e pelo cliente.
-chaveCripto = Fernet.generate_key()
 
-#Guardar a chave de criptografia num txt
-with open('chave.txt', 'wb') as file:
-    file.write(chaveCripto)
+def login():
+    aux = 1
+    name, address = server_socket.recvfrom(1024)
+    name = name.decode()
 
-#Objeto criado em cima da chaveCripto
-fernet = Fernet(chaveCripto)
-
-#Host (que pode ser o ip do server) e Porta a ser utilizada pelo socket
-HOST = 'localhost'
-PORT = 12345  
-
-#Cria um socket TCP/IP
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-#Liga o socket ao endereço e porta especificados
-server_socket.bind((HOST, PORT))
-
-#Permite o socket escutar até dois clientes
-server_socket.listen(2) 
-
-print('Aguardando conexões...')
-
-#Aceita as conexões dos dois clientes
-clients = []
-for _ in range(2):
-    client_socket, client_address = server_socket.accept()
-    print('Cliente conectado:', client_address)
-    clients.append(client_socket)
-
-#Serve para determinar quem começa
-clients[0].sendall("1".encode('utf-8'))
-clients[1].sendall("0".encode('utf-8'))
-
-# Jogo da velha
-matriz = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
-
-def Linha(i):
-    aux = matriz[i][0] + matriz[i][1] + matriz[i][2]
-    return aux
-
-def Coluna(i):
-    aux = matriz[0][i] + matriz[1][i] + matriz[2][i]
-    return aux
-
-def DiagP():
-    aux = matriz[0][0] + matriz[1][1] + matriz[2][2]
-    return aux
-
-def DiagS():
-    aux = matriz[2][0] + matriz[1][1] + matriz[0][2]
-    return aux
-
-def Teste():
-    x = 0
-
-    for i in range(3):
-        l = Linha(i)
-        if l == 3 or l == -3:
-            st = "linha " + str(i)
-            x = l
-            return True
-        else:
-            c = Coluna(i)
-            if c == 3 or c == -3:
-                st = "coluna " + str(i)
-                x = c
-                return True
-
-    dp = DiagP()
-    if dp == 3 or dp == -3:
-        st = "Diagonal principal"
-        x = dp
-        return True
+    # Verificando se o nickname ja existe
+    with open("users.json", "r") as f:
+        users = json.load(f)
+        f.close()
+    if not users:
+        pass
     else:
-        ds = DiagS()
-        if ds == 3 or ds == -3:
-            st = "Diagonal secundaria"
-            x = ds
-            return True
-
-    return False
-
-
-def XO(aux):
-    if aux == 0:
-        return '|_*_|'
-    elif aux == -1:
-        return '|_X_|'
-    elif aux == 1:
-        return '|_O_|'
-
-
-def printm(i):
-
-    string = "JOGADA " + str(i + 1) + '\n'
-    string = string + XO(matriz[0][0]) + " " + XO(matriz[0][1]) + " " + XO(matriz[0][2]) + '\n'
-    string = string + XO(matriz[1][0]) + " " + XO(matriz[1][1]) + " " + XO(matriz[1][2]) + '\n'
-    string = string + XO(matriz[2][0]) + " " + XO(matriz[2][1]) + " " + XO(matriz[2][2]) + '\n'
-    return string 
-
-turn = 0
-fim = False
-
-def solicitar_jogada(client_socket):
-    mensagem = 'FAÇA A JOGADA ' + str(turn + 1) + ': '
-    #Criptografa a mensagem
-    mensagemCripto = fernet.encrypt(mensagem.encode('utf-8'))
-    #Envia a mensagem criptografada
-    client_socket.sendall(mensagemCripto)
-
-while True:
-    try:
-        while not fim:
-            client_socket = clients[turn % 2]
-            jogadorDaRodada = ''
-            if turn % 2 == 0:
-                jogadorDaRodada = '1'
-            else:
-                jogadorDaRodada = '2'
-            
-            solicitar_jogada(client_socket)
-            
-            #Recebe os dados do cliente
-            data = client_socket.recv(1024)
-
-            if not data:
-                #O cliente desconectou
-                print('Cliente desconectado:', client_socket.getpeername())
+        for user in users:
+            if user["name"] == name:
+                server_socket.sendto(str(1).encode(), address)
+                aux = 0
                 break
 
-            jogadaDecriptada = fernet.decrypt(data)
+    # Verificando se é necessário cadastrar o user
+    if aux == 1:
+        # Criando novo user
+        new_user = {}
+        new_user["name"] = name
+        new_user["wins"] = 0
 
-            message = jogadaDecriptada.decode('utf-8')
+        # Adicionando ao arquivo
+        users.append(new_user)
+        with open("users.json", "w") as f:
+            json.dump(users, f)
+            f.close()
+            server_socket.sendto(str(1).encode(), address)
 
-            jogada = json.loads(message)
-            l = jogada['linha']
-            c = jogada['coluna']
 
-            if turn == 9:
-                print("Velha")
-                msgVelha = fernet.encrypt(('\0'+"Deu Velha!").encode('utf-8'))
-                clients[0].sendall(msgVelha)
-                clients[1].sendall(msgVelha)
+def match_request(endereco, name):
+    if user1["address"] == "":
+        user1["address"] = endereco
+        user1["name"] = name
+    else:
+        user2["address"] = endereco
+        user2["name"] = name
 
-            else:
+        player1 = copy.deepcopy(user1)
+        player2 = copy.deepcopy(user2)
+        new_playroom = threading.Thread(target=playroom, args=(player1, player2))
+        new_playroom.start()
+        # Resetando users
+        user1["address"] = ""
+        user1["name"] = ""
+        user2["address"] = ""
+        user2["name"] = ""
 
-                print("jogada ", turn + 1)
-                print('Jogada recebida: ', l, c)
-                linha = l
-                coluna = c
-                if matriz[l][c] == 0:
-                    matriz[l][c] = pow(-1, turn + 1)
-                    matrix = printm(turn)
-                    print(matrix)
-                    matrixCripto = fernet.encrypt(('\0'+matrix +'\0').encode('utf-8'))                   
-                    clients[0].sendall(matrixCripto)
-                    clients[1].sendall(matrixCripto)
-                    if Teste():
-                        print("O ganhador é o jogador:", jogadorDaRodada)
-                        ganhadorCripto = fernet.encrypt(('\n' + "O ganhador é o jogador:" + jogadorDaRodada).encode('utf-8'))
-                        clients[0].sendall(ganhadorCripto)
-                        clients[1].sendall(ganhadorCripto)
 
-                        fim = True
-                    turn += 1
-                else:
-                    print("Localização já preenchida")
-                    avisoCripto = fernet.encrypt(('O jogador ' + jogadorDaRodada + ' tentou uma posição ocupada').encode('utf-8'))
-                    clients[0].sendall(avisoCripto)
-                    clients[1].sendall(avisoCripto)
-                
-                    
+def playroom(player1, player2):
+    playroom_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    host = ""
+    port = 8001
+    playroom_socket.bind((host, port))
 
-    except json.JSONDecodeError:
-        print('Erro ao decodificar a mensagem JSON.')
-    except KeyError:
-        print('Chaves "linha" e "coluna" não encontradas na mensagem.')
+    # Tabuleiro Inicial
+    tabuleiro = board()
+    # Enviando dados do Player 1
+    playroom_socket.sendto(player2["name"], player1["address"])
+    playroom_socket.sendto("X".encode(), player1["address"])
+    playroom_socket.sendto(str(1).encode(), player1["address"])
+    playroom_socket.sendto(tabuleiro, player1["address"])
 
-    #Fecha a conexão com os clientes e o socket do servidor
-    for client_socket in clients:
-        client_socket.close()
-    server_socket.close()
+    # Enviando dados do Player 2
+    playroom_socket.sendto(player1["name"], player2["address"])
+    playroom_socket.sendto("O".encode(), player2["address"])
+    playroom_socket.sendto(str(0).encode(), player2["address"])
+    playroom_socket.sendto(tabuleiro, player2["address"])
+
+    winner = False
+    while not winner:
+        # Verificando tabuleiro
+        # Resultados:
+        # X -> Player1 Win
+        # O -> Player2 Win
+        # - -> Empate
+        # N -> O jogo continua
+        tabuleiro = json.loads(tabuleiro.decode())
+        resul = verification(tabuleiro)
+        print(resul)
+        tabuleiro = json.dumps(tabuleiro).encode()
+        if resul == "N":
+            # Esperando Jogada do Player1
+            tabuleiro, address = playroom_socket.recvfrom(1024)
+            if verification(json.loads(tabuleiro.decode())) == "N":
+                playroom_socket.sendto(str(1).encode(), player2["address"])
+                playroom_socket.sendto(tabuleiro, player2["address"])
+        elif resul == "X":
+            playroom_socket.sendto(str(7).encode(), player1["address"])
+            playroom_socket.sendto(str(7).encode(), player2["address"])
+            playroom_socket.sendto(tabuleiro, player1["address"])
+            playroom_socket.sendto(tabuleiro, player2["address"])
+            msg = "O vencedor é " + player1["name"].decode() + "(" + resul + ")"
+            playroom_socket.sendto(msg.encode(), player1["address"])
+            playroom_socket.sendto(msg.encode(), player2["address"])
+            add_win(player1["name"].decode())
+            break
+        elif resul == "O":
+            playroom_socket.sendto(str(7).encode(), player1["address"])
+            playroom_socket.sendto(str(7).encode(), player2["address"])
+            playroom_socket.sendto(tabuleiro, player1["address"])
+            playroom_socket.sendto(tabuleiro, player2["address"])
+            msg = "O vencedor é " + player2["name"].decode() + "(" + resul + ")"
+            playroom_socket.sendto(msg.encode(), player1["address"])
+            playroom_socket.sendto(msg.encode(), player2["address"])
+            add_win(player2["name"].decode())
+            break
+        elif resul == "-":
+            playroom_socket.sendto(str(7).encode(), player1["address"])
+            playroom_socket.sendto(str(7).encode(), player2["address"])
+            playroom_socket.sendto(tabuleiro, player1["address"])
+            playroom_socket.sendto(tabuleiro, player2["address"])
+            msg = "Ótima partida " + player1["name"].decode() + " e " + player2["name"].decode() + ". Vocês empataram!"
+
+            playroom_socket.sendto(msg.encode(), player1["address"])
+            playroom_socket.sendto(msg.encode(), player2["address"])
+            break
+
+        # Verificando tabuleiro
+        # Resultados:
+        # X -> Player1 Win
+        # O -> Player2 Win
+        # - -> Empate
+        # N -> O jogo continua
+        tabuleiro = json.loads(tabuleiro.decode())
+        resul = verification(tabuleiro)
+        print(resul)
+        tabuleiro = json.dumps(tabuleiro).encode()
+        if resul == "Aguardando a jogada...":
+            # Esperando Jogada do Player2
+            tabuleiro, address = playroom_socket.recvfrom(1024)
+            if verification(json.loads(tabuleiro.decode())) == "N":
+                playroom_socket.sendto(str(1).encode(), player1["address"])
+                playroom_socket.sendto(tabuleiro, player1["address"])
+        elif resul == "X":
+            playroom_socket.sendto(str(7).encode(), player1["address"])
+            playroom_socket.sendto(str(7).encode(), player2["address"])
+            playroom_socket.sendto(tabuleiro, player1["address"])
+            playroom_socket.sendto(tabuleiro, player2["address"])
+            msg = "O vencedor é "+player1["name"].decode()+"("+resul+")"
+            playroom_socket.sendto(msg.encode(), player1["address"])
+            playroom_socket.sendto(msg.encode(), player2["address"])
+            add_win(player1["name"].decode())
+            break
+        elif resul == "O":
+            playroom_socket.sendto(str(7).encode(), player1["address"])
+            playroom_socket.sendto(str(7).encode(), player2["address"])
+            playroom_socket.sendto(tabuleiro, player1["address"])
+            playroom_socket.sendto(tabuleiro, player2["address"])
+            msg = "O vencedor é "+player2["name"].decode()+"("+resul+")"
+            playroom_socket.sendto(msg.encode(), player1["address"])
+            playroom_socket.sendto(msg.encode(), player2["address"])
+            add_win(player2["name"].decode())
+            break
+        elif resul == "-":
+            playroom_socket.sendto(str(7).encode(), player1["address"])
+            playroom_socket.sendto(str(7).encode(), player2["address"])
+            playroom_socket.sendto(tabuleiro, player1["address"])
+            playroom_socket.sendto(tabuleiro, player2["address"])
+            msg = "Ótima partida "+player1["name"].decode()+" e "+player2["name"].decode()+". Vocês empataram!"
+            playroom_socket.sendto(msg.encode(), player1["address"])
+            playroom_socket.sendto(msg.encode(), player2["address"])
+            break
+    playroom_socket.close()
+
+
+def board():
+    tabuleiro = [["", "", ""], ["", "", ""], ["", "", ""]]
+    return json.dumps(tabuleiro).encode()
+
+
+def verification(tabuleiro):
+    # Verificando Linhas
+    i = ""
+    for linha in tabuleiro:
+        if all(i == "X" for i in linha):
+            return "X"
+        elif all(i == "O" for i in linha):
+            return "O"
+
+    # Verificando Colunas
+    for c in range(0,3):
+        if tabuleiro[0][c] == "X" and tabuleiro[1][c] == "X" and tabuleiro[2][c] == "X":
+            return "X"
+        elif tabuleiro[0][c] == "O" and tabuleiro[1][c] == "O" and tabuleiro[2][c] == "O":
+            return "O"
+
+    # Verificando empate
+    for linha in tabuleiro:
+        if any(i == "" for i in linha):
+            return "N"
+
+    # Ao fim de todos os teste é declarado o empate
+    return "-"
+
+
+def add_win(name):
+    with open("users.json", "r") as f:
+        users = json.load(f)
+        f.close()
+    for user in users:
+        if user["name"] == name:
+            user["wins"] += 1
+    with open("users.json", "w") as f:
+        json.dump(users, f)
+        f.close()
+
+
+def ranking(address):
+    with open("users.json", "r") as f:
+        users = json.load(f)
+        f.close()
+    users = sorted(users, key=lambda user: user["wins"], reverse=True)
+    server_socket.sendto(json.dumps(users).encode(), address)
+
+
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+host = "127.0.0.1"
+port = 8000
+
+user1 = {"name": "", "address": ""}
+
+user2 = {"name": "", "address": ""}
+
+server_socket.bind(('127.0.0.1', port))
+print("Servidor: On...")
+
+while True:
+    op, address = server_socket.recvfrom(1024)
+    print("Server connected by {}".format(address))
+    op = int(op.decode())
+    # Funções
+    # 0 -> Login
+    # 1 -> Requisição de Jogar
+    # 2-> Requisição de instruções
+    # 3 -> Requisição de Placares
+    print(op)
+    if op == 0:
+        login()
+
+    elif op == 1:
+        name, address = server_socket.recvfrom(1024)
+        match_request(address, name)
+
+    elif op == 3:
+        ranking(address)
