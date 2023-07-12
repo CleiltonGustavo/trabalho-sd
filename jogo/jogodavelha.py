@@ -2,7 +2,7 @@ import socket
 import json
 from cryptography.fernet import Fernet
 
-#Gerar um chave de criptografia que será utilizada para criptografar as mensagens enviadas pelo servidor
+#Gerar um chave de criptografia que será utilizada para criptografar e decriptografar as mensagens enviadas pelo servidor e pelo cliente.
 chaveCripto = Fernet.generate_key()
 
 #Guardar a chave de criptografia num txt
