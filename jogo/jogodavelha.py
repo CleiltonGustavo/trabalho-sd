@@ -84,16 +84,16 @@ def Teste():
 
 def XO(aux):
     if aux == 0:
-        return '.'
+        return '|_*_|'
     elif aux == -1:
-        return 'X'
+        return '|_X_|'
     elif aux == 1:
-        return 'O'
+        return '|_O_|'
 
 
 def printm(i):
 
-    string = "JOGADA" + str(i + 1) + '\n'
+    string = "JOGADA " + str(i + 1) + '\n'
     string = string + XO(matriz[0][0]) + " " + XO(matriz[0][1]) + " " + XO(matriz[0][2]) + '\n'
     string = string + XO(matriz[1][0]) + " " + XO(matriz[1][1]) + " " + XO(matriz[1][2]) + '\n'
     string = string + XO(matriz[2][0]) + " " + XO(matriz[2][1]) + " " + XO(matriz[2][2]) + '\n'
@@ -152,8 +152,8 @@ while True:
                     clients[1].sendall(('\0'+matrix +'\0').encode('utf-8'))
                     if Teste():
                         print("O ganhador é o jogador:", turn + 1)
-                        clients[0].sendall(('\n',"O ganhador é o jogador:", turn + 1).encode('utf-8'))
-                        clients[1].sendall(('\n',"O ganhador é o jogador:", turn + 1).encode('utf-8'))
+                        clients[0].sendall(('\n',"O ganhador é o jogador:", jogadorDaRodada).encode('utf-8'))
+                        clients[1].sendall(('\n',"O ganhador é o jogador:", jogadorDaRodada).encode('utf-8'))
 
                         fim = True
                     turn += 1
