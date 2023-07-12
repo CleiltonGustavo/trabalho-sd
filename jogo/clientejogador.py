@@ -1,132 +1,83 @@
 import socket
 import json
+from cryptography.fernet import Fernet
 
+#Configurações do cliente
+HOST = 'localhost'  
+PORT = 12345  
 
-def game_request():
-    client_socket.sendto(str(1).encode(), (host, port))
-    client_socket.sendto(name.encode(), (host, port))
-    print("Aguardando um adversário a sua altura...\n\n\n")
-    opponent, address = client_socket.recvfrom(1024)
-    opponent = opponent.decode()
-    player, address = client_socket.recvfrom(1024)
-    player = player.decode()
+#Cria um socket TCP/IP
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    while True:
-        vez, address = client_socket.recvfrom(1024)
-        vez = int(vez.decode())
-        tabuleiro, address = client_socket.recvfrom(1024)
-        tabuleiro = json.loads(tabuleiro.decode())
+#Conecta ao servidor
+client_socket.connect((HOST, PORT))
 
-        show_board(tabuleiro, opponent, player)
+print('Aguardando o adversário...')
 
-        if (vez != 7) and (vez == 1):
-            jogada = False
-            while not jogada:
-                print("Digite a linha em que deseja jogar:")
-                playL = int(input())
-                print("Digite a coluna em que deseja jogar:")
-                playC = int(input())
-                if tabuleiro[playL][playC] == "":
-                    tabuleiro[playL][playC] = player
-                    show_board(tabuleiro, opponent, player)
-                    jogada = True
-                    client_socket.sendto(json.dumps(tabuleiro).encode(), (host, 8001))
-                else:
-                    print("O local escolhido é inválido!!")
-                    print("Tente Novamente\n")
-                    show_board(tabuleiro, opponent, player)
-        elif vez == 7:
-            msg, address = client_socket.recvfrom(1024)
-            print(msg.decode())
-            input()
+flag = client_socket.recv(1024)
+flag = flag.decode('utf-8')
+#print(flag)
+if flag == '1'or 1:
+    sua_vez = True
+else:
+    sua_vez = False    
+while True:
+    if sua_vez:
+        req = client_socket.recv(1024)
+
+        if not req:
+            #O servidor desconectou
+            print('Servidor desconectado.')
             break
 
+        with open('chave.txt', 'rb') as file:
+            chaveCripto = file.read()
 
-def show_board(tabuleiro, opponent, player):
-    if player == "X":
-        player_opponent = "O"
+        #Faz um objeto fernet a partir da chave de criptografia do servidor
+        fernet = Fernet(chaveCripto)
+
+        mensagemDecriptada = fernet.decrypt(req)
+
+        #Decodifica a mensagem decriptada
+        mensagemDecodificada = mensagemDecriptada.decode('utf-8')
+
+        #Exibe a mensagem de solicitação do servidor
+        print(mensagemDecodificada)
+
+        while True:
+            #Prepara os dados da jogada
+            linha = input('Digite a linha: ')
+            coluna = input('Digite a coluna: ')
+
+            if linha.isdigit() and coluna.isdigit():
+                linha = int(linha)
+                coluna = int(coluna)
+
+                if linha in [0, 1, 2] and coluna in [0, 1, 2]:
+                    break
+            print('Valores inválidos! A linha e a coluna devem ser 0, 1 ou 2.')
+
+        jogada = {'linha': linha, 'coluna': coluna}
+
+        #Converte a jogada em JSON
+        message = json.dumps(jogada)
+
+        #Criptografa a mensagem
+        messageCripto = fernet.encrypt(message.encode('utf-8'))
+
+        #Envia a mensagem criptografada para o servidor
+        client_socket.sendall(messageCripto)
+        sua_vez = False
     else:
-        player_opponent = "X"
-    print(name+"("+player+")\t\t\t\t\t\t\t\t\t\t"+opponent+"("+player_opponent+")\n\t\t\t\t\t", end="")
-    for c in range(0, 3):
-        print("  " + str(c) + " ", end="")
-    print("\n\t\t\t\t\t ", end="")
-    print(" ___" * 3)
-    l = 0
-    for linha in tabuleiro:
-        print("\t\t\t\t\t"+str(l), end="")
-        for coluna in linha:
-            if coluna == "":
-                print("|___", end="")
-            else:
-                print("|_" + coluna + "_", end="")
-        print("|")
-        l += 1
+        sua_vez = True
 
+    data = client_socket.recv(1024)
 
-def instructions():
-    print("----------------------------------------------------")
-    print("|              Jogador1 x Jogador 2                |")
-    print("----------------------------------------------------")
-    print("1- Neste jogo serão escolhidos dois jogadores aleátorios\n"
-          "   Aquele que estiver esperando mais tempo na fila\n"
-          "   será o Player 1(X) e o outro o Player 2(O).")
-    print("2- As jogadas ocorrem de forma alternada, e em cada\n"
-          "   jogada deverá ser informado a linha e a coluna desejada.")
-    print("3- Aquele que vencer ganhará pontos no ranking.")
-    print("4- Caso empate nenhum jogador ganhará o ponto.")
-    input()
+    matrixDecriptada = fernet.decrypt(data)
 
-
-def ranking():
-    client_socket.sendto(str(3).encode(), (host, port))
-    rank, address = client_socket.recvfrom(1024)
-    rank = json.loads(rank.decode())
-    rank_number = 1
-    print("------------------------------------------------------")
-    print("|  Ranking |            Jogador           |  Vitorias|")
-    print("------------------------------------------------------")
-    for user in rank:
-        print("\t["+str(rank_number)+"] \t\t\t"+user["name"]+"                     "+str(user["wins"]))
-        rank_number += 1
-    input()
-
-
-# Socket de Comunicação
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-port = 8000
-host = "127.0.0.1"
-op = 0
-while op != 1:
-    print("-------------------------------")
-    print("|    Jogador 1 x Jogador 2    |")
-    print("-------------------------------")
-    print("| Digite um nome de Usuário:  |")
-    print("-------------------------------")
-    name = input()
-    client_socket.sendto(str(0).encode(), ('127.0.0.1', port))
-    client_socket.sendto(name.encode(), (host, port))
-    op, address = client_socket.recvfrom(1024)
-    op = int(op.decode())
-
-
-while True:
-    print("\n\n\n\n")
-    print("-------------------------------")
-    print("|    Jogador 1 x Jogador 2    |")
-    print("-------------------------------")
-    print("| (1) - JOGAR                 |")
-    print("| (2) - PLACARES              |")
-    print("| (3) - SAIR                  |")
-    print("-------------------------------")
-    op = int(input())
-
-    if op == 1:
-        game_request()
-    elif op == 2:
-        ranking()
-    elif op == 3:
-        break
-    else:
-        pass
+    matrixDecodificada = matrixDecriptada.decode('utf-8')
     
+    print(matrixDecodificada)
+
+#Fecha o socket do cliente
+client_socket.close()
