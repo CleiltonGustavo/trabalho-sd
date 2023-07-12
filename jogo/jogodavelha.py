@@ -135,7 +135,7 @@ def playroom(player1, player2):
         resul = verification(tabuleiro)
         print(resul)
         tabuleiro = json.dumps(tabuleiro).encode()
-        if resul == "Aguardando a jogada...":
+        if resul == "N":
             # Esperando Jogada do Player2
             tabuleiro, address = playroom_socket.recvfrom(1024)
             if verification(json.loads(tabuleiro.decode())) == "N":
@@ -232,7 +232,7 @@ user1 = {"name": "", "address": ""}
 user2 = {"name": "", "address": ""}
 
 server_socket.bind(('127.0.0.1', port))
-print("Servidor: On...")
+print("Server Status: Running...")
 
 while True:
     op, address = server_socket.recvfrom(1024)
