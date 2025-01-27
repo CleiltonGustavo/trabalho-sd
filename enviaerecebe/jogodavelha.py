@@ -3,7 +3,7 @@ import json
 
 # Configurações do servidor
 HOST = 'localhost'  # Pode ser o IP do seu servidor
-PORT = 12345  # Porta do servidor
+PORT = 123456  # Porta do servidor
 
 # Cria um socket TCP/IP
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
